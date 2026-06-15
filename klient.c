@@ -49,14 +49,13 @@ void send_game_req()
     {
         printf("Recvfrom error");
     }
-    printf("Server name is: %s\n", servname);
+    printf("Nazwa serwera to: %s\n", servname);
 
     close(sockfd);
 }
 
 int main()
 {
-
     printf("Witaj! Podaj nazwę serwera, lub kliknij x, aby go wyszukać.\n");
     fgets(servname, sizeof(servname), stdin);
     if(strcmp(servname, "x") != 0)
@@ -69,7 +68,7 @@ int main()
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = 0;
     // 192.168.0.30 defined as serwer1 in /etc/hosts
-    printf("servname: %s\n", servname);
+    //printf("servname: %s\n", servname);
     int rc = getaddrinfo(servname, "1864", &hints, &res);
     if(rc != 0)
     {
@@ -93,11 +92,41 @@ int main()
     }
 
     char buf[1024];
+    memset(buf, 0, sizeof(buf));
     printf("Podaj login i hasło w formacie login/hasło i naciśnij ENTER\n");
     fgets(buf, sizeof(buf), stdin);
-    if( write(fd, buf, sizeof(buf)) < 0)
+
+    if( write(fd, buf, strlen(buf)) < 0)
     {
         fprintf(stderr, "Write error: %s\n", strerror(errno));
         return -1;   
+    }
+
+    if( read(fd, buf, sizeof(buf)) < 0)
+    {
+        fprintf(stderr, "Read error: %s\n", strerror(errno));
+        return -1;   
+    }
+
+    printf("Odpowiedź serwera na próbę logowania: %s\n", buf);
+
+    while(1 == 1)
+    {
+        printf("Wyślij swoją akcję: ");
+        memset(buf, 0, sizeof(buf));
+        fgets(buf, sizeof(buf), stdin);
+        if( write(fd, buf, strlen(buf)) < 0)
+        {
+            fprintf(stderr, "Write error: %s\n", strerror(errno));
+            return -1;   
+        }
+
+        memset(buf, 0, sizeof(buf));
+        if( read(fd, buf, sizeof(buf)) < 0)
+        {
+            fprintf(stderr, "Read error: %s\n", strerror(errno));
+            return -1;   
+        }
+        printf("Odpowiedź serwera: %s\n", buf);
     }
 }
