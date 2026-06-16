@@ -30,7 +30,7 @@ typedef struct {
 #pragma pack(pop)
 
 enum ServerMsgTag : uint8_t { SERVER_LOGIN_RESPONSE };
-const size_t ServerMsgLengths[] = {
+static const size_t ServerMsgLengths[] = {
     [SERVER_LOGIN_RESPONSE] = sizeof(ServerLoginResponse),
 };
 typedef struct {
@@ -41,7 +41,7 @@ typedef struct {
 } ServerMsg;
 
 enum ClientMsgTag : uint8_t { CLIENT_MSG_LOGIN, CLIENT_MSG_MOVE };
-const size_t ClientMsgLengths[] = {
+static const size_t ClientMsgLengths[] = {
     [CLIENT_MSG_LOGIN] = sizeof(ClientLoginMsg),
     [CLIENT_MSG_MOVE] = sizeof(ClientMoveMsg),
 };

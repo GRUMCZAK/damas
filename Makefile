@@ -1,6 +1,6 @@
 CC       = cc
-WARNINGS = -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wstrict-prototypes -Wstrict-overflow -Wwrite-strings -Wcast-qual -Wswitch-enum -Wconversion -Wunreachable-code -Wformat=2
-CFLAGS   = -Wall -Wextra $(WARNINGS) -g3 -O0
+WARNINGS = -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wstrict-prototypes -Wstrict-overflow -Wwrite-strings -Wcast-qual -Wswitch-enum -Wconversion -Wunreachable-code -Wformat=2
+CFLAGS   = -std=gnu23 $(WARNINGS) -g3 -O0
 BUILDDIR = build
 TARGETS  = server client
 

@@ -33,11 +33,15 @@ Player *find_player(int fd) {
   return NULL;
 }
 void close_player(Player *player) {
+  if (player->clientfd == 0) {
+    return;
+  }
   close(player->clientfd);
   memset(player, 0, sizeof *player);
+  players_len--;
 }
 void close_all_players() {
-  for (int j = 0; j < players_len; j++) {
+  for (int j = 0; j < MAX_PLAYERS; j++) {
     close_player(&players[j]);
   }
 }

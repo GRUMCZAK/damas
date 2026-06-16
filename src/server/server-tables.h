@@ -6,7 +6,8 @@
 
 #define MAX_GAMES 64
 #define MAX_PLAYERS 128
-#define MAX_MSG_LENGTH (1 << LENGTH_LENGTH) - 1 + TAG_LENGTH + LENGTH_LENGTH
+#define MAX_MSG_LENGTH                                                         \
+  (1 << (8 * LENGTH_LENGTH)) - 1 + TAG_LENGTH + LENGTH_LENGTH
 
 typedef struct Player {
   int clientfd; // 0 -> empty struct

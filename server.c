@@ -5,6 +5,7 @@
 #include "src/server/server-tables.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,8 @@ const unsigned short PORT = 8000;
 int sockfd = -1;
 
 int main() {
+  signal(SIGPIPE, SIG_IGN);
+
   errorout(sockfd = socket(AF_INET, SOCK_STREAM, 0));
   printf("sockfd=%d\n", sockfd);
   errorout(
@@ -64,16 +67,21 @@ int main() {
         event.events = EPOLLIN;
         if (epoll_ctl(epollfd, EPOLL_CTL_ADD, clientfd, &event) == -1) {
           printerror("epoll_ctl(, EPOLL_CTL_ADD, ...)");
-          break;
+          close(clientfd);
+          continue;
         }
 
         Player new = {
             .clientfd = clientfd,
+            .read_state = READING_TAG,
+            .current_msg_length = TAG_LENGTH,
         };
-        add_player(new);
+        if (add_player(new) == -1) {
+          close(clientfd);
+        }
       } else {
         Player *player = find_player(event.data.fd);
-        if (player->clientfd == 0) {
+        if (player == NULL) {
           close(event.data.fd);
           continue;
         }
@@ -81,8 +89,10 @@ int main() {
         ssize_t io_ret = read(
             player->clientfd, player->read_buffer + player->read_buffer_length,
             player->current_msg_length - player->read_buffer_length);
-        if (io_ret == -1) {
-          printerror("read(...)");
+        if (io_ret <= 0) {
+          if (io_ret < 0) {
+            printerror("player read(...)");
+          }
           close_player(player);
           continue;
         }
@@ -94,11 +104,6 @@ int main() {
 
         if (player->read_state == READING_TAG) {
           player->current_msg_tag = player->read_buffer[0];
-          if (player->current_msg_tag >= arr_len(ClientMsgLengths)) {
-            printerror("client send an illigal tag");
-            close_player(player);
-            continue;
-          }
           player->read_state = READING_LENGTH;
           player->current_msg_length = LENGTH_LENGTH;
           player->read_buffer_length = 0;
@@ -114,12 +119,6 @@ int main() {
           player->current_msg_length = TAG_LENGTH;
           player->read_buffer_length = 0;
         }
-
-        // TODO: add parsing logic of client message, i.e. login in, playing
-        // etc also add error handling also we need to dynamicly change number
-        // of els in games/clients -> vector?
-
-        io_ret = write(player->clientfd, "ASD\n", (size_t){4});
       }
     }
   }

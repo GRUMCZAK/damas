@@ -1,7 +1,7 @@
 #include "player-messages.h"
 #include <string.h>
 
-ServerMsg xecute_player_msg(Player *player) {
+ServerMsg execute_player_msg(Player *player) {
   ClientMsg msg = {
       .tag = player->current_msg_tag,
   };
