@@ -4,15 +4,24 @@ CFLAGS   = -Wall -Wextra $(WARNINGS) -g3 -O0
 BUILDDIR = build
 TARGETS  = server client
 
-SRCS = $(wildcard src/*.c)
-OBJS = $(SRCS:%.c=$(BUILDDIR)/%.o)
+COMMON_SRCS = $(wildcard src/common/*.c)
+COMMON_OBJS = $(COMMON_SRCS:%.c=$(BUILDDIR)/%.o)
+
+SERVER_SRCS = server.c $(wildcard src/server/*.c)
+SERVER_OBJS = $(SERVER_SRCS:%.c=$(BUILDDIR)/%.o)
+
+CLIENT_SRCS = client.c $(wildcard src/client/*.c)
+CLIENT_OBJS = $(CLIENT_SRCS:%.c=$(BUILDDIR)/%.o)
 
 all: $(TARGETS)
 
 run-%: %
 	./$<
 
-$(TARGETS): %: $(BUILDDIR)/%.o $(OBJS)
+server: $(SERVER_OBJS) $(COMMON_OBJS)
+	$(CC) -o $@ $^
+
+client: $(CLIENT_OBJS) $(COMMON_OBJS)
 	$(CC) -o $@ $^
 
 $(BUILDDIR)/%.o: %.c

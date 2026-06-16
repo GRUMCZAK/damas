@@ -1,8 +1,5 @@
 #ifndef _GAME_H
 #define _GAME_H
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 int isended(int board[]);
 // coordinates to number e.g. C 1 -> 22

@@ -1,8 +1,10 @@
-#include "src/game.h"
+#include "src/client/game.h"
 #include <stdio.h>
 
+#define _CLIENT
+
 int main() {
-  // starting positions of the pawns/
+  // starting positions of the pawns
   // clang-format off
     int board[100] = {
         0, 1, 0, 1, 0, 1, 0, 1, 0, 1,

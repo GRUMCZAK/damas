@@ -1,55 +1,26 @@
+#include "src/common/helpers.h"
+#include "src/common/logs.h"
+#include "src/common/transport.h"
+#include "src/server/player-messages.h"
+#include "src/server/server-tables.h"
 #include <arpa/inet.h>
-#include <errno.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#define MAX_MESSAGE_SIZE 256
-const unsigned short PORT = 8000;
-const char *LOG_PREFIX = "damas-server: ";
-
-int sockfd = -1;
-typedef struct {
-  char name[32];
-  int clientfd;
-} Player;
-typedef struct {
-  Player player1;
-  Player player2;
-} Game;
-Game games[64];
-unsigned int ngames = 0;
-Player players[128];
-unsigned int nplayers = 0;
+#define _SERVER
 
 #define ARR_LEN(arr) sizeof arr / sizeof arr[0]
+const unsigned short PORT = 8000;
 
-#define printerror(x) _printerror(__FILE__, __LINE__, __func__, x)
-void _printerror(const char *fileName, int lineNumber, const char *funcName,
-                 const char *calledFunction) {
-  char buf[256];
-  snprintf(buf, 256, "%s%s:%d in %s: %s -> %d", LOG_PREFIX, fileName,
-           lineNumber, funcName, calledFunction, errno);
-  perror(buf);
-}
-#define errorout(x) _errorout(__FILE__, __LINE__, __func__, #x, (x))
-#define errorout_msg(x, y) _errorout(__FILE__, __LINE__, __func__, y, (x))
-void _errorout(const char *fileName, int lineNumber, const char *funcName,
-               const char *calledFunction, int err) {
-  if (err < 0) {
-    _printerror(fileName, lineNumber, funcName, calledFunction);
-    if (sockfd != -1) {
-      close(sockfd);
-    }
-    exit(1);
-  }
-}
+int sockfd = -1;
 
-int main(void) {
+int main() {
   errorout(sockfd = socket(AF_INET, SOCK_STREAM, 0));
   printf("sockfd=%d\n", sockfd);
   errorout(
@@ -85,41 +56,75 @@ int main(void) {
         int clientfd = accept(sockfd, (struct sockaddr *)&client_addr,
                               &(socklen_t){sizeof client_addr});
         if (clientfd == -1) {
-          printerror("accept()");
+          printerror("accept(...)");
           continue;
         }
 
         event.data.fd = clientfd;
         event.events = EPOLLIN;
-        errorout(epoll_ctl(epollfd, EPOLL_CTL_ADD, clientfd, &event));
+        if (epoll_ctl(epollfd, EPOLL_CTL_ADD, clientfd, &event) == -1) {
+          printerror("epoll_ctl(, EPOLL_CTL_ADD, ...)");
+          break;
+        }
 
         Player new = {
             .clientfd = clientfd,
         };
-        players[nplayers++] = new;
+        add_player(new);
       } else {
-        for (int j = 0; j < nplayers; j++) {
-          Player player = players[j];
-          if (player.clientfd != event.data.fd)
-            continue;
-
-          char buffer[128];
-          ssize_t io_ret = read(player.clientfd, buffer, sizeof buffer);
-          buffer[io_ret] = '\0';
-          // TODO: add parsing logic of client message, i.e. login in, playing
-          // etc also add error handling also we need to dynamicly change number
-          // of els in games/clients -> vector?
-          printf("Message from client: %s\b", buffer);
-
-          io_ret = write(player.clientfd, buffer, (size_t)io_ret);
+        Player *player = find_player(event.data.fd);
+        if (player->clientfd == 0) {
+          close(event.data.fd);
+          continue;
         }
+
+        ssize_t io_ret = read(
+            player->clientfd, player->read_buffer + player->read_buffer_length,
+            player->current_msg_length - player->read_buffer_length);
+        if (io_ret == -1) {
+          printerror("read(...)");
+          close_player(player);
+          continue;
+        }
+        player->read_buffer_length += io_ret;
+
+        if (player->read_buffer_length < player->current_msg_length) {
+          continue;
+        }
+
+        if (player->read_state == READING_TAG) {
+          player->current_msg_tag = player->read_buffer[0];
+          if (player->current_msg_tag >= arr_len(ClientMsgLengths)) {
+            printerror("client send an illigal tag");
+            close_player(player);
+            continue;
+          }
+          player->read_state = READING_LENGTH;
+          player->current_msg_length = LENGTH_LENGTH;
+          player->read_buffer_length = 0;
+        } else if (player->read_state == READING_LENGTH) {
+          memcpy(&player->current_msg_length, player->read_buffer,
+                 sizeof player->current_msg_length);
+          player->read_state = READING_VALUE;
+          player->read_buffer_length = 0;
+        } else if (player->read_state == READING_VALUE) {
+          ServerMsg msg = execute_player_msg(player);
+          write(player->clientfd, &msg.login_res, ServerMsgLengths[msg.tag]);
+          player->read_state = READING_TAG;
+          player->current_msg_length = TAG_LENGTH;
+          player->read_buffer_length = 0;
+        }
+
+        // TODO: add parsing logic of client message, i.e. login in, playing
+        // etc also add error handling also we need to dynamicly change number
+        // of els in games/clients -> vector?
+
+        io_ret = write(player->clientfd, "ASD\n", (size_t){4});
       }
     }
   }
 
-  for (int j = 0; j < nplayers; j++) {
-    close(players[j].clientfd);
-  }
+  close_all_players();
   close(sockfd);
 
   return 0;
